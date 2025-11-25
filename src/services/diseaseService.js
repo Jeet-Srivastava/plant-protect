@@ -1,6 +1,3 @@
-import axios from 'axios';
-import useSettingsStore from '../store/settingsStore';
-
 // mock data crearted bhy jeet for teasting phase 
 
 const MOCK_DISEASES = [
@@ -265,38 +262,64 @@ function pickRandomDiagnosis() {
   return { ...choice, confidence: randomConfidence() };
 }
 
-export async function diagnoseByName(plantName) {
-  try {
-    // For development: always return a random mock diagnosis regardless of input.
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as FileSystem from 'expo-file-system/legacy';
+import { GEMINI_API_KEY } from '@env';
+
+export async function diagnoseByName(plantName, imageUri) {
+  const apiKey = GEMINI_API_KEY;
+
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('No Gemini API Key configured in .env. Using mock data.');
     return pickRandomDiagnosis();
+  }
+
+  try {
+    console.log('Starting diagnosis with gemini-2.5-flash...');
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    // Read file as base64
+    const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' });
+
+    const prompt = `Identify the disease in this plant: ${plantName}. 
+    Return a JSON object with the following structure:
+    {
+      "diseaseName": "Name of the disease",
+      "description": "Short description of the disease",
+      "treatments": ["Treatment 1", "Treatment 2", ...],
+      "confidence": 0.95
+    }
+    If the plant looks healthy, return "diseaseName": "Healthy".
+    If you cannot identify the plant or disease, return "diseaseName": "Unknown".
+    Ensure the response is valid JSON.`;
+
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: base64, mimeType: "image/jpeg" } }
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
+
+    // Clean up markdown code blocks if present
+    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const data = JSON.parse(jsonStr);
+
+    return {
+      diseaseName: data.diseaseName || 'Unknown',
+      description: data.description || 'No description available.',
+      treatments: data.treatments || [],
+      confidence: data.confidence || 0.8
+    };
+
   } catch (e) {
-    // Ensure we never throw; always provide a reasonable fallback.
+    console.error('Gemini API Error:', e);
+    // Fallback to mock on error
     return pickRandomDiagnosis();
   }
 }
 
 export function getMockDiagnosis() {
   return pickRandomDiagnosis();
-}
-
-// Optional Plant.id integration (stub)
-export async function diagnoseWithPlantId(images=[]) {
-  const apiKey = useSettingsStore.getState().plantIdApiKey;
-  if (!apiKey) return null;
-  try {
-    const resp = await axios.post('https://plant.id/api/v3/health_assessment', {}, {
-      headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' }
-    });
-    const top = resp.data?.result?.diseases?.[0];
-    if (!top) return null;
-    return {
-      diseaseName: top.name || 'Unknown',
-      description: top?.description || '—',
-      treatments: top?.treatment?.preventions || top?.treatment?.biological || top?.treatment?.chemical || [],
-      confidence: top?.probability || 0.8
-    };
-  } catch (e) {
-    console.warn('Plant.id error', e.message);
-    return null;
-  }
 }
