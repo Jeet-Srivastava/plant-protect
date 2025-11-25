@@ -60,6 +60,6 @@
 ---
 
 ### 10. Additional Notes (Optional)  
-- Using Plant.id API to avoid building and training a custom model in the initial version  
-- Can expand to offline diagnosis using a TensorFlow Lite model in future versions  
-- May include multi-language support based on user feedback  
+- Using Gemini API to avoid building and training a custom model in the initial version
+- May include multi-language support based on user feedback 
+- To run the app locally, create a .env file and add the gemini api key (GEMINI_API_KEY) in it.
