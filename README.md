@@ -3,6 +3,8 @@
 ### 1. Project Title  
 **Smart Plant Disease Detection App Using Image Recognition**
 
+[Demo Video](https://drive.google.com/file/d/1zs5CPkimhI3tgGpzPh4JgR8HQPNm1ve3/view?usp=sharing)
+
 ---
 
 ### 2. Your Name & Roll Number  
